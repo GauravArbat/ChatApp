@@ -3,22 +3,18 @@
     "name": "Chat App",
     "builds": [
         {
-            "src": "./index.js",
+            "src": "index.js",
             "use": "@vercel/node"
         }
     ],
     "routes": [
         {
-            "src": "/socket.io/(.*)", 
-            "dest": "./index.js"
-        },
-        {
-            "src": "/api/(.*)", 
-            "dest": "./index.js"
+            "src": "/api/(.*)",
+            "dest": "index.js"
         },
         {
             "src": "/(.*)",
-            "dest": "./public/$1" 
+            "dest": "index.js"
         }
     ]
 }
