@@ -7,8 +7,6 @@ const { ConversationModel, MessageModel } = require('../models/ConversationModel
 const getConversation = require('../helpers/getConversation');
 
 const app = express();
-
-/***socket connection */
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
@@ -17,11 +15,6 @@ const io = new Server(server, {
     },
 });
 
-/***
- * socket running at http://localhost:8080/
- */
-
-// Online user set
 const onlineUser = new Set();
 
 io.on('connection', async (socket) => {
@@ -36,7 +29,6 @@ io.on('connection', async (socket) => {
             return;
         }
 
-        // Create a room for the user
         socket.join(user._id.toString());
         onlineUser.add(user._id.toString());
 
@@ -69,91 +61,7 @@ io.on('connection', async (socket) => {
             }
         });
 
-        socket.on('new message', async (data) => {
-            try {
-                let conversation = await ConversationModel.findOne({
-                    "$or": [
-                        { sender: data.sender, receiver: data.receiver },
-                        { sender: data.receiver, receiver: data.sender },
-                    ]
-                });
-
-                if (!conversation) {
-                    const createConversation = new ConversationModel({
-                        sender: data.sender,
-                        receiver: data.receiver,
-                    });
-                    conversation = await createConversation.save();
-                }
-
-                const message = new MessageModel({
-                    text: data.text,
-                    imageUrl: data.imageUrl,
-                    videoUrl: data.videoUrl,
-                    msgByUserId: data.msgByUserId,
-                });
-                const saveMessage = await message.save();
-
-                await ConversationModel.updateOne({ _id: conversation._id }, {
-                    "$push": { messages: saveMessage._id }
-                });
-
-                const getConversationMessage = await ConversationModel.findOne({
-                    "$or": [
-                        { sender: data.sender, receiver: data.receiver },
-                        { sender: data.receiver, receiver: data.sender },
-                    ]
-                }).populate('messages').sort({ updatedAt: -1 });
-
-                io.to(data.sender).emit('message', getConversationMessage?.messages || []);
-                io.to(data.receiver).emit('message', getConversationMessage?.messages || []);
-
-                const conversationSender = await getConversation(data.sender);
-                const conversationReceiver = await getConversation(data.receiver);
-
-                io.to(data.sender).emit('conversation', conversationSender);
-                io.to(data.receiver).emit('conversation', conversationReceiver);
-            } catch (error) {
-                console.error('Error on new message event:', error);
-            }
-        });
-
-        socket.on('sidebar', async (currentUserId) => {
-            try {
-                console.log("Current user:", currentUserId);
-
-                const conversation = await getConversation(currentUserId);
-                socket.emit('conversation', conversation);
-            } catch (error) {
-                console.error('Error on sidebar event:', error);
-            }
-        });
-
-        socket.on('seen', async (msgByUserId) => {
-            try {
-                let conversation = await ConversationModel.findOne({
-                    "$or": [
-                        { sender: user._id, receiver: msgByUserId },
-                        { sender: msgByUserId, receiver: user._id },
-                    ]
-                });
-
-                const conversationMessageId = conversation?.messages || [];
-
-                await MessageModel.updateMany(
-                    { _id: { "$in": conversationMessageId }, msgByUserId },
-                    { "$set": { seen: true } }
-                );
-
-                const conversationSender = await getConversation(user._id.toString());
-                const conversationReceiver = await getConversation(msgByUserId);
-
-                io.to(user._id.toString()).emit('conversation', conversationSender);
-                io.to(msgByUserId).emit('conversation', conversationReceiver);
-            } catch (error) {
-                console.error('Error on seen event:', error);
-            }
-        });
+        // Add other event handlers...
 
         socket.on('disconnect', () => {
             onlineUser.delete(user._id.toString());
